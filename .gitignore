@@ -19,6 +19,7 @@ dist/
 !package.json
 !tsconfig.json
 !jobs.json.example
+!config/prompts.json
 
 # Generated images
 output/
