@@ -7,14 +7,17 @@
  * @module core/orchestrator
  */
 
-import type { Job, OrchestratorConfig } from '../types/index.js';
-import type { ImageGenerator } from '../adapters/index.js';
-import { GeneratorError } from '../adapters/index.js';
-import type { StateManager } from './state/index.js';
-import type { EventBus } from './events/index.js';
-import type { ImagePersistenceService, ImageMetadata } from './services/index.js';
-import { createChildLogger, defaultLogger } from '../config/logger.js';
-import type pino from 'pino';
+import type { Job, OrchestratorConfig } from "../types/index.js";
+import type { ImageGenerator } from "../adapters/index.js";
+import { GeneratorError } from "../adapters/index.js";
+import type { StateManager } from "./state/index.js";
+import type { EventBus } from "./events/index.js";
+import type {
+  ImagePersistenceService,
+  ImageMetadata,
+} from "./services/index.js";
+import { createChildLogger, defaultLogger } from "../config/logger.js";
+import type pino from "pino";
 
 // =============================================================================
 // Orchestrator Implementation
@@ -72,10 +75,10 @@ export class Orchestrator {
     private readonly generator: ImageGenerator,
     private readonly imagePersistence: ImagePersistenceService,
     private readonly eventBus: EventBus,
-    private readonly config: OrchestratorConfig,
+    private readonly config: OrchestratorConfig
   ) {
     this.logger = createChildLogger(defaultLogger, {
-      component: 'Orchestrator',
+      component: "Orchestrator",
       provider: generator.providerName,
       model: generator.modelId,
     });
@@ -92,7 +95,7 @@ export class Orchestrator {
    */
   async start(): Promise<void> {
     if (this.isRunning) {
-      this.logger.warn('Orchestrator already running');
+      this.logger.warn("Orchestrator already running");
       return;
     }
 
@@ -106,7 +109,7 @@ export class Orchestrator {
         rateLimitMs: this.config.rateLimitMs,
         maxRetries: this.config.maxRetries,
       },
-      'Starting batch processing',
+      "Starting batch processing"
     );
 
     // Emit initial state to any connected clients
@@ -138,7 +141,7 @@ export class Orchestrator {
         processedCount: this.processedCount,
         durationMs: this.startTime ? Date.now() - this.startTime.getTime() : 0,
       },
-      'Batch processing stopped',
+      "Batch processing stopped"
     );
   }
 
@@ -153,7 +156,7 @@ export class Orchestrator {
       return;
     }
 
-    this.logger.info('Stop requested, will finish current job');
+    this.logger.info("Stop requested, will finish current job");
     this.shouldStop = true;
   }
 
@@ -183,18 +186,19 @@ export class Orchestrator {
     this.logger.info(
       {
         jobId: job.id,
-        promptPreview: job.prompt.slice(0, 50) + (job.prompt.length > 50 ? '...' : ''),
+        promptPreview:
+          job.prompt.slice(0, 50) + (job.prompt.length > 50 ? "..." : ""),
         retries: job.retries,
       },
-      'Processing job',
+      "Processing job"
     );
 
     // Emit PROCESSING status (already set by claimNextJob, but notify clients)
     this.eventBus.emit({
-      type: 'STATUS_UPDATE',
+      type: "STATUS_UPDATE",
       payload: {
         jobId: job.id,
-        status: 'PROCESSING',
+        status: "PROCESSING",
         timestamp: new Date().toISOString(),
       },
     });
@@ -216,7 +220,7 @@ export class Orchestrator {
         job.id,
         result.buffer,
         result.mimeType,
-        metadata,
+        metadata
       );
 
       // Update state
@@ -230,21 +234,21 @@ export class Orchestrator {
           outputPath,
           durationMs: Math.round(duration),
         },
-        'Job completed successfully',
+        "Job completed successfully"
       );
 
       // Emit success events
       this.eventBus.emit({
-        type: 'STATUS_UPDATE',
+        type: "STATUS_UPDATE",
         payload: {
           jobId: job.id,
-          status: 'DONE',
+          status: "DONE",
           timestamp: new Date().toISOString(),
         },
       });
 
       this.eventBus.emit({
-        type: 'IMAGE_READY',
+        type: "IMAGE_READY",
         payload: {
           jobId: job.id,
           imageUrl: this.imagePersistence.getPublicUrl(outputPath),
@@ -262,7 +266,11 @@ export class Orchestrator {
   /**
    * Handle a job error with retry logic.
    */
-  private async handleJobError(job: Job, error: Error, durationMs: number): Promise<void> {
+  private async handleJobError(
+    job: Job,
+    error: Error,
+    durationMs: number
+  ): Promise<void> {
     const isRetryable = error instanceof GeneratorError && error.isRetryable;
 
     this.logger.error(
@@ -274,7 +282,7 @@ export class Orchestrator {
         maxRetries: this.config.maxRetries,
         durationMs: Math.round(durationMs),
       },
-      'Job failed',
+      "Job failed"
     );
 
     // Mark as failed in state
@@ -282,10 +290,10 @@ export class Orchestrator {
 
     // Emit failure event
     this.eventBus.emit({
-      type: 'STATUS_UPDATE',
+      type: "STATUS_UPDATE",
       payload: {
         jobId: job.id,
-        status: 'FAILED',
+        status: "FAILED",
         error: error.message,
         timestamp: new Date().toISOString(),
       },
@@ -295,14 +303,18 @@ export class Orchestrator {
     // Need to fetch fresh job state since markFailed incremented retries
     const updatedJob = await this.stateManager.getJob(job.id);
 
-    if (updatedJob && isRetryable && this.stateManager.shouldRetry(updatedJob)) {
+    if (
+      updatedJob &&
+      isRetryable &&
+      this.stateManager.shouldRetry(updatedJob)
+    ) {
       this.logger.info(
         {
           jobId: job.id,
           retryCount: updatedJob.retries,
           maxRetries: this.config.maxRetries,
         },
-        'Scheduling job for retry',
+        "Scheduling job for retry"
       );
 
       await this.stateManager.resetForRetry(job.id);
@@ -311,9 +323,9 @@ export class Orchestrator {
         {
           jobId: job.id,
           retries: updatedJob?.retries ?? job.retries + 1,
-          reason: isRetryable ? 'max retries exceeded' : 'non-retryable error',
+          reason: isRetryable ? "max retries exceeded" : "non-retryable error",
         },
-        'Job will not be retried',
+        "Job will not be retried"
       );
     }
   }
@@ -330,14 +342,11 @@ export class Orchestrator {
     const stats = await this.stateManager.getStats();
 
     this.eventBus.emit({
-      type: 'INIT',
+      type: "INIT",
       payload: { jobs, stats },
     });
 
-    this.logger.debug(
-      { jobCount: jobs.length, stats },
-      'Emitted INIT event',
-    );
+    this.logger.debug({ jobCount: jobs.length, stats }, "Emitted INIT event");
   }
 
   /**
@@ -353,11 +362,11 @@ export class Orchestrator {
         durationMs: duration,
         processedCount: this.processedCount,
       },
-      'Batch processing complete',
+      "Batch processing complete"
     );
 
     this.eventBus.emit({
-      type: 'BATCH_COMPLETE',
+      type: "BATCH_COMPLETE",
       payload: {
         stats,
         duration,
@@ -374,4 +383,3 @@ export class Orchestrator {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
-

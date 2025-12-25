@@ -8,12 +8,12 @@
  * @module core/services/image-persistence
  */
 
-import { basename, join } from 'node:path';
-import sharp from 'sharp';
-import { atomicWriteBuffer, ensureDirectory } from '../../utils/index.js';
-import type { ImageMimeType } from '../../adapters/index.js';
-import { createChildLogger, defaultLogger } from '../../config/logger.js';
-import type pino from 'pino';
+import { basename, join } from "node:path";
+import sharp from "sharp";
+import { atomicWriteBuffer, ensureDirectory } from "../../utils/index.js";
+import type { ImageMimeType } from "../../adapters/index.js";
+import { createChildLogger, defaultLogger } from "../../config/logger.js";
+import type pino from "pino";
 
 // =============================================================================
 // Types
@@ -63,7 +63,7 @@ export class ImagePersistenceService {
 
   constructor(private readonly outputDir: string) {
     this.logger = createChildLogger(defaultLogger, {
-      component: 'ImagePersistence',
+      component: "ImagePersistence",
       outputDir,
     });
   }
@@ -81,7 +81,7 @@ export class ImagePersistenceService {
     jobId: number,
     buffer: Buffer,
     mimeType: ImageMimeType,
-    metadata: ImageMetadata,
+    metadata: ImageMetadata
   ): Promise<string> {
     // Ensure output directory exists (lazy initialization)
     if (!this.initialized) {
@@ -99,12 +99,16 @@ export class ImagePersistenceService {
         bufferSize: buffer.length,
         model: metadata.model,
       },
-      'Saving image with metadata',
+      "Saving image with metadata"
     );
 
     try {
       // Embed metadata into the image
-      const bufferWithMetadata = await this.embedMetadata(buffer, mimeType, metadata);
+      const bufferWithMetadata = await this.embedMetadata(
+        buffer,
+        mimeType,
+        metadata
+      );
 
       await atomicWriteBuffer(outputPath, bufferWithMetadata);
 
@@ -115,7 +119,7 @@ export class ImagePersistenceService {
           sizeKB: Math.round(bufferWithMetadata.length / 1024),
           model: metadata.model,
         },
-        'Image saved successfully with metadata',
+        "Image saved successfully with metadata"
       );
 
       return outputPath;
@@ -126,7 +130,7 @@ export class ImagePersistenceService {
           outputPath,
           error: error instanceof Error ? error.message : String(error),
         },
-        'Failed to save image',
+        "Failed to save image"
       );
 
       throw error;
@@ -164,8 +168,8 @@ export class ImagePersistenceService {
    * Examples: img_0001.png, img_0032.png
    */
   private generateFilename(jobId: number, mimeType: ImageMimeType): string {
-    const extension = mimeType === 'image/png' ? 'png' : 'jpg';
-    const paddedId = String(jobId).padStart(4, '0');
+    const extension = mimeType === "image/png" ? "png" : "jpg";
+    const paddedId = String(jobId).padStart(4, "0");
     return `img_${paddedId}.${extension}`;
   }
 
@@ -173,7 +177,7 @@ export class ImagePersistenceService {
    * Ensure the output directory exists.
    */
   private async ensureOutputDirectory(): Promise<void> {
-    this.logger.debug('Ensuring output directory exists');
+    this.logger.debug("Ensuring output directory exists");
     await ensureDirectory(this.outputDir);
   }
 
@@ -192,7 +196,7 @@ export class ImagePersistenceService {
   private async embedMetadata(
     buffer: Buffer,
     mimeType: ImageMimeType,
-    metadata: ImageMetadata,
+    metadata: ImageMetadata
   ): Promise<Buffer> {
     try {
       // Build EXIF-compatible metadata
@@ -204,7 +208,7 @@ export class ImagePersistenceService {
       // Create sharp instance and process
       let processor = sharp(buffer);
 
-      if (mimeType === 'image/png') {
+      if (mimeType === "image/png") {
         // For PNG, use withMetadata with EXIF
         processor = processor
           .withMetadata({
@@ -212,7 +216,7 @@ export class ImagePersistenceService {
               IFD0: {
                 ImageDescription: description,
                 Software: software,
-                Artist: 'RBIG (Resilient Batch Image Generator)',
+                Artist: "RBIG (Resilient Batch Image Generator)",
                 Copyright: `Generated: ${timestamp}`,
               },
             },
@@ -226,7 +230,7 @@ export class ImagePersistenceService {
               IFD0: {
                 ImageDescription: description,
                 Software: software,
-                Artist: 'RBIG (Resilient Batch Image Generator)',
+                Artist: "RBIG (Resilient Batch Image Generator)",
                 Copyright: `Generated: ${timestamp}`,
               },
             },
@@ -241,10 +245,9 @@ export class ImagePersistenceService {
         {
           error: error instanceof Error ? error.message : String(error),
         },
-        'Failed to embed metadata, saving without metadata',
+        "Failed to embed metadata, saving without metadata"
       );
       return buffer;
     }
   }
 }
-

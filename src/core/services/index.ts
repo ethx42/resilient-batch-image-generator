@@ -7,5 +7,4 @@
 export {
   type ImageMetadata,
   ImagePersistenceService,
-} from './image-persistence.service.js';
-
+} from "./image-persistence.service.js";
