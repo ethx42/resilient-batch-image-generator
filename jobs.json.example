@@ -1,0 +1,12 @@
+{
+  "jobs": [
+    {
+      "id": 1,
+      "prompt": "A serene mountain landscape at sunset",
+      "status": "PENDING",
+      "retries": 0,
+      "createdAt": "2025-12-24T00:00:00.000Z",
+      "updatedAt": "2025-12-24T00:00:00.000Z"
+    }
+  ]
+}
