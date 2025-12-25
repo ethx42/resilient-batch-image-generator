@@ -10,20 +10,23 @@ export {
   JsonJobRepository,
   type StateManagerConfig,
   StateManager,
-} from './state/index.js';
+} from "./state/index.js";
 
 // Events
-export { EventBus } from './events/index.js';
+export { EventBus } from "./events/index.js";
 
 // Services
 export {
   type ImageMetadata,
   ImagePersistenceService,
-} from './services/index.js';
+} from "./services/index.js";
 
 // Orchestrator
+export { type OrchestratorStatus, Orchestrator } from "./orchestrator.js";
+
+// Lifecycle
 export {
-  type OrchestratorStatus,
-  Orchestrator,
-} from './orchestrator.js';
+  type ShutdownDependencies,
+  setupGracefulShutdown,
+} from "./lifecycle.js";
 
