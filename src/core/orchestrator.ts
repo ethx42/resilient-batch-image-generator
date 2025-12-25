@@ -12,7 +12,7 @@ import type { ImageGenerator } from '../adapters/index.js';
 import { GeneratorError } from '../adapters/index.js';
 import type { StateManager } from './state/index.js';
 import type { EventBus } from './events/index.js';
-import type { ImagePersistenceService } from './services/index.js';
+import type { ImagePersistenceService, ImageMetadata } from './services/index.js';
 import { createChildLogger, defaultLogger } from '../config/logger.js';
 import type pino from 'pino';
 
@@ -203,11 +203,20 @@ export class Orchestrator {
       // Generate image
       const result = await this.generator.generate(job.prompt);
 
-      // Save to disk
+      // Build metadata for embedding in the image
+      const metadata: ImageMetadata = {
+        prompt: job.prompt,
+        model: this.generator.modelId,
+        provider: this.generator.providerName,
+        generatedAt: result.generatedAt,
+      };
+
+      // Save to disk with embedded metadata
       const outputPath = await this.imagePersistence.save(
         job.id,
         result.buffer,
         result.mimeType,
+        metadata,
       );
 
       // Update state

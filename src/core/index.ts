@@ -16,7 +16,10 @@ export {
 export { EventBus } from './events/index.js';
 
 // Services
-export { ImagePersistenceService } from './services/index.js';
+export {
+  type ImageMetadata,
+  ImagePersistenceService,
+} from './services/index.js';
 
 // Orchestrator
 export {

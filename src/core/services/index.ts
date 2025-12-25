@@ -4,5 +4,8 @@
  * @module core/services
  */
 
-export { ImagePersistenceService } from './image-persistence.service.js';
+export {
+  type ImageMetadata,
+  ImagePersistenceService,
+} from './image-persistence.service.js';
 
