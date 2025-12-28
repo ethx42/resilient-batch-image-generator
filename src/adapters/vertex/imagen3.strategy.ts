@@ -8,8 +8,8 @@
  */
 
 import { helpers } from '@google-cloud/aiplatform';
-import type { VertexConfig } from '../../types/index.js';
-import { DEFAULTS } from '../../types/index.js';
+import type { VertexConfig, VertexModelId } from '../../types/index.js';
+import { DEFAULTS, VERTEX_MODELS } from '../../types/index.js';
 import type {
   ImageGenerator,
   GenerationOptions,
@@ -46,19 +46,52 @@ import type pino from 'pino';
  * await fs.writeFile('sunset.png', result.buffer);
  * ```
  */
+/**
+ * Options for creating a Vertex Imagen strategy.
+ */
+export interface VertexImagenStrategyOptions {
+  /** Configuration for Vertex AI connection */
+  readonly config: VertexConfig;
+  /** Model ID to use (defaults to Imagen 3) */
+  readonly modelId?: VertexModelId;
+}
+
 export class VertexImagen3Strategy implements ImageGenerator {
   readonly providerName = 'google-vertex';
-  readonly modelId = DEFAULTS.MODEL_ID;
+  readonly modelId: string;
 
+  private readonly config: VertexConfig;
   private readonly endpoint: string;
   private readonly logger: pino.Logger;
 
-  constructor(private readonly config: VertexConfig) {
-    this.endpoint = buildEndpoint(config, this.modelId);
+  constructor(options: VertexImagenStrategyOptions);
+  /** @deprecated Use options object instead */
+  constructor(config: VertexConfig);
+  constructor(optionsOrConfig: VertexImagenStrategyOptions | VertexConfig) {
+    // Handle both legacy and new signature
+    const isOptions = 'config' in optionsOrConfig;
+    this.config = isOptions ? optionsOrConfig.config : optionsOrConfig;
+    this.modelId = isOptions && optionsOrConfig.modelId
+      ? optionsOrConfig.modelId
+      : DEFAULTS.MODEL_ID;
+
+    this.endpoint = buildEndpoint(this.config, this.modelId);
     this.logger = createChildLogger(defaultLogger, {
-      component: 'VertexImagen3Strategy',
+      component: 'VertexImagenStrategy',
       model: this.modelId,
     });
+  }
+
+  /**
+   * Get a human-readable name for the current model.
+   */
+  get modelName(): string {
+    for (const model of Object.values(VERTEX_MODELS)) {
+      if (model.id === this.modelId) {
+        return model.name;
+      }
+    }
+    return this.modelId;
   }
 
   /**
@@ -75,17 +108,25 @@ export class VertexImagen3Strategy implements ImageGenerator {
   ): Promise<GenerationResult> {
     const startTime = performance.now();
 
+    // Get current master aesthetic (dynamic getter)
+    const masterAesthetic = this.config.getMasterAesthetic();
+    
     // Inject master aesthetic prompt if configured
     const fullPrompt = this.buildFullPrompt(prompt);
 
-    this.logger.debug(
-      {
-        promptLength: fullPrompt.length,
-        promptPreview: fullPrompt.slice(0, 100) + (fullPrompt.length > 100 ? '...' : ''),
-        aspectRatio: options?.aspectRatio ?? DEFAULTS.ASPECT_RATIO,
-      },
-      'Starting image generation',
-    );
+    // Build detailed log of what's being sent
+    const logDetails: Record<string, unknown> = {
+      model: this.modelId,
+      originalPrompt: prompt,
+      masterAestheticActive: !!masterAesthetic,
+      masterAesthetic: masterAesthetic || '(none)',
+      fullPrompt: fullPrompt,
+      aspectRatio: options?.aspectRatio ?? DEFAULTS.ASPECT_RATIO,
+      safetyFilterLevel: options?.safetyFilterLevel ?? DEFAULTS.SAFETY_FILTER,
+    };
+
+    // Log the complete request details
+    this.logger.info(logDetails, '🎨 VERTEX AI API REQUEST - FULL PROMPT');
 
     try {
       const client = getVertexClient(this.config);
@@ -167,9 +208,10 @@ export class VertexImagen3Strategy implements ImageGenerator {
    * Build the full prompt with master aesthetic injection.
    *
    * Format: "{masterAesthetic}. {prompt}" or just "{prompt}" if no aesthetic.
+   * The aesthetic is obtained dynamically to reflect any runtime changes.
    */
   private buildFullPrompt(prompt: string): string {
-    const aesthetic = this.config.masterAesthetic.trim();
+    const aesthetic = this.config.getMasterAesthetic().trim();
 
     if (!aesthetic) {
       return prompt;

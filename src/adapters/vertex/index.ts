@@ -20,3 +20,5 @@ export {
 
 export { VertexImagen3Strategy } from './imagen3.strategy.js';
 
+export { VertexControlledStrategy } from './controlled.strategy.js';
+

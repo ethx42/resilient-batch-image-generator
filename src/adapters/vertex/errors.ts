@@ -165,3 +165,4 @@ function grpcCodeToHttpStatus(grpcCode?: number): number {
   return mapping[grpcCode] ?? 500;
 }
 
+
