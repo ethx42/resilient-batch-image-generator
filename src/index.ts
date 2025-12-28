@@ -23,6 +23,7 @@ import {
   StateManager,
   EventBus,
   ImagePersistenceService,
+  ConfigService,
   Orchestrator,
   setupGracefulShutdown,
 } from "./core/index.js";
@@ -79,27 +80,40 @@ async function main(): Promise<void> {
   // Event bus for SSE
   const eventBus = new EventBus();
 
+  // Config service (editable prompts and aesthetic from config files)
+  const configService = new ConfigService();
+  await configService.initialize();
+
+  appLogger.info(
+    { promptCount: configService.getPrompts().length },
+    "Configuration loaded"
+  );
+
   // State management
   const repository = new JsonJobRepository(resolve(DEFAULTS.JOBS_FILE));
   const stateManager = new StateManager(repository, {
     maxRetries: env.MAX_RETRIES,
   });
 
-  // Check if we have jobs to process
+  // Initialize jobs from prompts if needed
   const hasJobs = await stateManager.hasJobs();
   if (!hasJobs) {
-    appLogger.warn(
-      "No jobs to process. Create config/prompts.json with an array of prompts."
-    );
-    appLogger.info("Example: [\"A sunset over mountains\", \"A cat in space\"]");
-    process.exit(0);
+    const prompts = configService.getPrompts();
+    if (prompts.length > 0) {
+      await stateManager.initializeFromPrompts(prompts);
+      appLogger.info({ count: prompts.length }, "Jobs initialized from prompts");
+    } else {
+      appLogger.warn("No prompts configured. Add prompts via the dashboard.");
+    }
   }
 
   // Image generator (Vertex AI or Mock based on env)
+  // The getMasterAesthetic getter ensures the current value is used for each generation
   const useMock = process.env["USE_MOCK_GENERATOR"] === "true";
   const generator = GeneratorFactory.create(
     useMock ? "mock" : "vertex-imagen3",
-    env
+    env,
+    { getMasterAesthetic: () => configService.getMasterAesthetic() }
   );
 
   appLogger.info(
@@ -121,12 +135,32 @@ async function main(): Promise<void> {
     {
       rateLimitMs: env.RATE_LIMIT_MS,
       maxRetries: env.MAX_RETRIES,
-    }
+    },
+    () => configService.getMasterAesthetic()
   );
 
   // ---------------------------------------------------------------------------
   // 4. Start HTTP Server
   // ---------------------------------------------------------------------------
+
+  // Build provider configs for benchmark
+  // Use getter to ensure current aesthetic value is used for each generation
+  const vertexConfig = {
+    projectId: env.GOOGLE_CLOUD_PROJECT,
+    location: env.GOOGLE_CLOUD_LOCATION,
+    getMasterAesthetic: () => configService.getMasterAesthetic(),
+  };
+
+  const serverDeps = {
+    eventBus,
+    stateManager,
+    orchestrator,
+    configService,
+    env,
+    vertexConfig,
+    ...(env.OPENAI_API_KEY ? { openaiApiKey: env.OPENAI_API_KEY } : {}),
+    ...(env.GOOGLE_AI_API_KEY ? { geminiApiKey: env.GOOGLE_AI_API_KEY } : {}),
+  };
 
   const server = await createApp(
     {
@@ -134,10 +168,7 @@ async function main(): Promise<void> {
       outputDir: resolve(DEFAULTS.OUTPUT_DIR),
       logLevel: env.LOG_LEVEL,
     },
-    {
-      eventBus,
-      stateManager,
-    }
+    serverDeps
   );
 
   await server.listen({ port: env.PORT, host: "0.0.0.0" });
@@ -154,7 +185,7 @@ async function main(): Promise<void> {
   setupGracefulShutdown({ orchestrator, server });
 
   // ---------------------------------------------------------------------------
-  // 6. Start Batch Processing
+  // 6. Server Ready - Wait for UI to Start Batch
   // ---------------------------------------------------------------------------
 
   const stats = await stateManager.getStats();
@@ -166,32 +197,16 @@ async function main(): Promise<void> {
       failed: stats.failed,
       total: stats.total,
     },
-    "Starting batch processing"
+    "Server ready. Open dashboard to start batch processing."
   );
 
-  await orchestrator.start();
-
-  // ---------------------------------------------------------------------------
-  // 7. Completion
-  // ---------------------------------------------------------------------------
-
-  const finalStats = await stateManager.getStats();
   appLogger.info(
-    {
-      completed: finalStats.done,
-      failed: finalStats.failed,
-      total: finalStats.total,
-    },
-    "Batch processing complete!"
+    { dashboard: `http://localhost:${env.PORT}` },
+    "🚀 Dashboard available - click 'Start Batch' to begin"
   );
 
-  // Give SSE clients time to receive final events
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  // Clean exit
-  appLogger.info("Shutting down...");
-  await server.close();
-  process.exit(0);
+  // Keep server running until shutdown signal
+  // The batch is started via POST /api/start from the dashboard
 }
 
 // =============================================================================

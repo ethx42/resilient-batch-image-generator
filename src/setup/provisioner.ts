@@ -115,10 +115,7 @@ export class Provisioner {
       created.push(dir);
     }
 
-    this.logger.info(
-      { directories: created },
-      "Directories verified/created"
-    );
+    this.logger.info({ directories: created }, "Directories verified/created");
 
     return created;
   }
@@ -166,13 +163,19 @@ export class Provisioner {
       this.logger.debug("jobs.json already exists, skipping initialization");
 
       // Read to get count
-      const existing = await safeReadJSON(jobsPath, PromptsInputSchema.or(
-        // Also accept JobsFile format
-        await import("../types/index.js").then((m) => m.JobsFileSchema)
-      ));
+      const existing = await safeReadJSON(
+        jobsPath,
+        PromptsInputSchema.or(
+          // Also accept JobsFile format
+          await import("../types/index.js").then((m) => m.JobsFileSchema)
+        )
+      );
 
       if (existing && "jobs" in existing) {
-        return { initialized: false, count: (existing as JobsFile).jobs.length };
+        return {
+          initialized: false,
+          count: (existing as JobsFile).jobs.length,
+        };
       }
 
       return { initialized: false, count: 0 };
