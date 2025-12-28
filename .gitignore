@@ -23,6 +23,11 @@ dist/
 
 # Generated images
 output/
+benchmark/
+
+# Reference images
+config/references/
+imagenes loteria/
 
 # Logs
 logs/
