@@ -23,6 +23,7 @@ export {
 // Factory
 export {
   type GeneratorProvider,
+  type GeneratorCreateOptions,
   SUPPORTED_PROVIDERS,
   GeneratorFactory,
 } from './generator.factory.js';
@@ -36,7 +37,21 @@ export {
 // Vertex AI
 export {
   VertexImagen3Strategy,
+  VertexControlledStrategy,
   VertexApiError,
   validateCredentials,
 } from './vertex/index.js';
+
+// OpenAI
+export {
+  DalleStrategy,
+  type DalleStrategyOptions,
+} from './openai/index.js';
+
+// Gemini (Nano Banana)
+export {
+  GeminiImageStrategy,
+  GeminiApiError,
+  type GeminiImageStrategyOptions,
+} from './gemini/index.js';
 

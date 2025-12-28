@@ -10,6 +10,8 @@
  * @module adapters/generator.interface
  */
 
+import type { GenerationReferences } from '../types/reference.types.js';
+
 // =============================================================================
 // Generation Options
 // =============================================================================
@@ -44,6 +46,19 @@ export interface GenerationOptions {
    * @default 'block_some'
    */
   readonly safetyFilterLevel?: SafetyFilterLevel;
+
+  /**
+   * Optional reference images for controlled generation.
+   *
+   * When provided, enables Structure-Conditioned Style Transfer:
+   * - Subject Reference: Maintain product/person identity across contexts
+   * - Control Reference: Structure-conditioned generation (edges, sketches)
+   * - Style Reference: Extract and apply visual style from reference image
+   *
+   * Note: Requires a model that supports controlled generation
+   * (e.g., imagen-3.0-capability-001 for Vertex AI).
+   */
+  readonly references?: GenerationReferences;
 }
 
 // =============================================================================
