@@ -10,10 +10,16 @@
 import { resolve } from "node:path";
 import Fastify, { type FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
-import type { EventBus } from "../core/index.js";
-import type { StateManager } from "../core/index.js";
+import type { EventBus, StateManager, ConfigService } from "../core/index.js";
 import { registerEventsRoute } from "./routes/events.route.js";
 import { registerDashboardRoute } from "./routes/dashboard.route.js";
+import { registerApiRoutes } from "./routes/api.route.js";
+import { registerBenchmarkRoutes } from "./routes/benchmark.route.js";
+import { registerReferenceRoutes } from "./routes/reference.route.js";
+import { registerBatchRoutes } from "./routes/batch.route.js";
+import type { Orchestrator } from "../core/index.js";
+import type { VertexConfig } from "../types/index.js";
+import { DEFAULTS } from "../types/index.js";
 
 // =============================================================================
 // Types
@@ -37,6 +43,12 @@ export interface ServerConfig {
 export interface ServerDependencies {
   readonly eventBus: EventBus;
   readonly stateManager: StateManager;
+  readonly orchestrator: Orchestrator;
+  readonly configService: ConfigService;
+  readonly env: import("../types/index.js").EnvConfig;
+  readonly vertexConfig?: VertexConfig;
+  readonly openaiApiKey?: string;
+  readonly geminiApiKey?: string;
 }
 
 // =============================================================================
@@ -85,6 +97,13 @@ export async function createApp(
     decorateReply: true,
   });
 
+  // Serve benchmark results from /benchmark
+  await app.register(fastifyStatic, {
+    root: resolve(DEFAULTS.BENCHMARK_DIR),
+    prefix: "/benchmark/",
+    decorateReply: false,
+  });
+
   // ---------------------------------------------------------------------------
   // Routes
   // ---------------------------------------------------------------------------
@@ -97,6 +116,34 @@ export async function createApp(
 
   // SSE events endpoint
   registerEventsRoute(app, deps.eventBus, deps.stateManager);
+
+  // API endpoints
+  registerApiRoutes(app, {
+    orchestrator: deps.orchestrator,
+    stateManager: deps.stateManager,
+    configService: deps.configService,
+    env: deps.env,
+  });
+
+  // Reference image management endpoints (Controlled Generation)
+  registerReferenceRoutes(app, {
+    stateManager: deps.stateManager,
+  });
+
+  // Benchmark API
+  const benchmarkDeps: Parameters<typeof registerBenchmarkRoutes>[1] = {
+    configService: deps.configService,
+    ...(deps.vertexConfig ? { vertexConfig: deps.vertexConfig } : {}),
+    ...(deps.openaiApiKey ? { openaiApiKey: deps.openaiApiKey } : {}),
+    ...(deps.geminiApiKey ? { geminiApiKey: deps.geminiApiKey } : {}),
+  };
+  registerBenchmarkRoutes(app, benchmarkDeps);
+
+  // Batch Generation API
+  registerBatchRoutes(app, {
+    configService: deps.configService,
+    env: deps.env,
+  });
 
   // Dashboard HTML
   registerDashboardRoute(app);
