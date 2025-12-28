@@ -1,0 +1,31 @@
+[
+  {
+    "text": "Reinterpret this image in Caribbean folk art style with bold tropical colors, hand-painted textures, and a vintage schoolbook illustration aesthetic",
+    "reference": "original_001.png",
+    "referenceType": "style",
+    "styleDescription": "Caribbean folk art with bold colors and naive art style"
+  },
+  {
+    "text": "Transform into an impressionist oil painting with visible brushstrokes and warm sunset palette",
+    "reference": "original_002.png",
+    "referenceType": "style",
+    "styleDescription": "Impressionist oil painting with bold brushstrokes"
+  },
+  {
+    "text": "Generate a photorealistic architectural render following this sketch structure",
+    "reference": "sketch_001.png",
+    "referenceType": "control",
+    "controlType": "CONTROL_TYPE_SCRIBBLE",
+    "computeControl": false
+  },
+  {
+    "text": "Create a new scene with this product on a beach at sunset",
+    "reference": "product_001.png",
+    "referenceType": "subject",
+    "subjectType": "product",
+    "subjectDescription": "Red Nike sneaker with white sole"
+  },
+  "This is a simple prompt without any reference image - works like before"
+]
+
+

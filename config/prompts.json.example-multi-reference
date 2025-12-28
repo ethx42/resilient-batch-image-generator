@@ -1,0 +1,115 @@
+[
+  "Simple text prompt without any references - works with all models",
+
+  {
+    "text": "A red sneaker on a beach at sunset with waves in the background",
+    "references": [
+      {
+        "path": "sneaker_front.png",
+        "type": "subject",
+        "subjectType": "product",
+        "description": "Red Nike Air Max sneaker with white sole"
+      },
+      {
+        "path": "sneaker_side.png",
+        "type": "subject",
+        "subjectType": "product",
+        "description": "Same sneaker from side angle"
+      },
+      {
+        "path": "sunset_beach_style.png",
+        "type": "style",
+        "description": "Warm sunset photography with golden hour lighting"
+      }
+    ]
+  },
+
+  {
+    "text": "A cat wearing a tiny astronaut helmet floating in space",
+    "references": [
+      {
+        "path": "my_cat.png",
+        "type": "subject",
+        "subjectType": "animal",
+        "description": "Orange tabby cat with green eyes"
+      },
+      {
+        "path": "space_art_style.png",
+        "type": "style",
+        "description": "Retro sci-fi illustration style with stars and nebulae"
+      }
+    ]
+  },
+
+  {
+    "text": "Transform this sketch into a photorealistic architectural render",
+    "references": [
+      {
+        "path": "building_sketch.png",
+        "type": "control",
+        "controlType": "CONTROL_TYPE_SCRIBBLE",
+        "computeControl": false
+      },
+      {
+        "path": "modern_architecture_style.png",
+        "type": "style",
+        "description": "Modern minimalist architecture photography"
+      }
+    ]
+  },
+
+  {
+    "text": "A portrait following this pose in vintage oil painting style",
+    "references": [
+      {
+        "path": "pose_reference.png",
+        "type": "control",
+        "controlType": "CONTROL_TYPE_FACE_MESH",
+        "computeControl": true
+      },
+      {
+        "path": "renaissance_style.png",
+        "type": "style",
+        "description": "Renaissance oil painting with dramatic lighting"
+      }
+    ]
+  },
+
+  {
+    "text": "Multiple subjects: A woman holding a product in a kitchen",
+    "references": [
+      {
+        "path": "model_face.png",
+        "type": "subject",
+        "subjectType": "person",
+        "description": "Female model with brown hair and warm smile"
+      },
+      {
+        "path": "product_bottle.png",
+        "type": "subject",
+        "subjectType": "product",
+        "description": "Organic olive oil bottle with green label"
+      },
+      {
+        "path": "kitchen_composition.png",
+        "type": "control",
+        "controlType": "CONTROL_TYPE_CANNY",
+        "computeControl": true
+      },
+      {
+        "path": "lifestyle_photography.png",
+        "type": "style",
+        "description": "Warm lifestyle photography with natural lighting"
+      }
+    ]
+  },
+
+  {
+    "text": "Reinterpret in Caribbean folk art style with bold tropical colors",
+    "reference": "original_photo.png",
+    "referenceType": "style",
+    "styleDescription": "Caribbean folk art with bold colors and naive art style"
+  }
+]
+
+
