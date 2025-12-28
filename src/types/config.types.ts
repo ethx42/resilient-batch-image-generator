@@ -34,14 +34,18 @@ export const EnvSchema = z.object({
   GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
 
   // -------------------------------------------------------------------------
+  // Google AI (Gemini)
+  // -------------------------------------------------------------------------
+
+  /** Google AI API Key for Gemini models (optional, enables Nano Banana) */
+  GOOGLE_AI_API_KEY: z.string().optional(),
+
+  // -------------------------------------------------------------------------
   // Application
   // -------------------------------------------------------------------------
 
   /** Dashboard server port */
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-
-  /** Master aesthetic prompt prepended to all generations */
-  MASTER_AESTHETIC_PROMPT: z.string().default(''),
 
   // -------------------------------------------------------------------------
   // Resilience
@@ -52,6 +56,13 @@ export const EnvSchema = z.object({
 
   /** Delay between API calls (rate limiting) in milliseconds */
   RATE_LIMIT_MS: z.coerce.number().int().min(0).max(60000).default(2000),
+
+  // -------------------------------------------------------------------------
+  // OpenAI (Optional - for benchmark comparison)
+  // -------------------------------------------------------------------------
+
+  /** OpenAI API Key (optional, enables DALL-E in benchmarks) */
+  OPENAI_API_KEY: z.string().optional(),
 
   // -------------------------------------------------------------------------
   // Logging
@@ -75,7 +86,11 @@ export type EnvConfig = z.infer<typeof EnvSchema>;
 export interface VertexConfig {
   readonly projectId: string;
   readonly location: string;
-  readonly masterAesthetic: string;
+  /** 
+   * Getter for master aesthetic prompt.
+   * Called dynamically on each generation to get the current value.
+   */
+  readonly getMasterAesthetic: () => string;
 }
 
 // =============================================================================
@@ -108,6 +123,109 @@ export interface ServerConfig {
 // =============================================================================
 
 /**
+ * Available Vertex AI Imagen models for benchmarking.
+ */
+export const VERTEX_MODELS = {
+  IMAGEN_3: {
+    id: 'imagen-3.0-generate-001',
+    name: 'Imagen 3',
+    description: 'High quality, slower generation',
+  },
+  IMAGEN_3_FAST: {
+    id: 'imagen-3.0-fast-generate-001',
+    name: 'Imagen 3 Fast',
+    description: 'Faster generation, slightly lower quality',
+  },
+  IMAGEN_3_CAPABILITY: {
+    id: 'imagen-3.0-capability-001',
+    name: 'Imagen 3 Controlled',
+    description: 'Supports subject, control, and style references',
+  },
+} as const;
+
+export type VertexModelKey = keyof typeof VERTEX_MODELS;
+export type VertexModelId = (typeof VERTEX_MODELS)[VertexModelKey]['id'];
+
+/**
+ * Available OpenAI DALL-E models for benchmarking.
+ */
+export const OPENAI_MODELS = {
+  DALLE_3: {
+    id: 'dall-e-3',
+    name: 'DALL-E 3',
+    description: 'Latest OpenAI image model, highest quality',
+  },
+  DALLE_2: {
+    id: 'dall-e-2',
+    name: 'DALL-E 2',
+    description: 'Faster, lower cost, good quality',
+  },
+} as const;
+
+export type OpenAIModelKey = keyof typeof OPENAI_MODELS;
+export type OpenAIModelId = (typeof OPENAI_MODELS)[OpenAIModelKey]['id'];
+
+/**
+ * Configuration passed to the OpenAI adapter.
+ */
+export interface OpenAIConfig {
+  readonly apiKey: string;
+  /** 
+   * Getter for master aesthetic prompt.
+   * Called dynamically on each generation to get the current value.
+   */
+  readonly getMasterAesthetic: () => string;
+}
+
+// =============================================================================
+// Gemini Configuration
+// =============================================================================
+
+/**
+ * Available Google Gemini models for image generation.
+ * 
+ * These models use the Google Generative AI SDK (@google/genai) 
+ * and support multimodal input including multiple reference images.
+ */
+export const GEMINI_MODELS = {
+  GEMINI_FLASH_IMAGE: {
+    id: 'gemini-2.5-flash-image',
+    name: 'Nano Banana',
+    description: 'Fast image generation with multimodal input support',
+  },
+  GEMINI_PRO_IMAGE: {
+    id: 'gemini-3-pro-image-preview',
+    name: 'Nano Banana Pro',
+    description: 'Advanced image generation with enhanced visual precision',
+  },
+} as const;
+
+export type GeminiModelKey = keyof typeof GEMINI_MODELS;
+export type GeminiModelId = (typeof GEMINI_MODELS)[GeminiModelKey]['id'];
+
+/**
+ * Configuration passed to the Gemini adapter.
+ */
+export interface GeminiConfig {
+  /** Google AI API Key */
+  readonly apiKey: string;
+  /** 
+   * Getter for master aesthetic prompt.
+   * Called dynamically on each generation to get the current value.
+   */
+  readonly getMasterAesthetic: () => string;
+}
+
+/**
+ * All available models across providers.
+ */
+export const ALL_MODELS = {
+  ...VERTEX_MODELS,
+  ...OPENAI_MODELS,
+  ...GEMINI_MODELS,
+} as const;
+
+/**
  * Default values that are NOT configurable via environment.
  * These are architectural constants.
  */
@@ -125,7 +243,7 @@ export const DEFAULTS = {
   TOTAL_IMAGES: 32,
 
   /** Imagen 3 model identifier */
-  MODEL_ID: 'imagen-3.0-generate-001',
+  MODEL_ID: VERTEX_MODELS.IMAGEN_3.id,
 
   /** Output directory for generated images */
   OUTPUT_DIR: './output',
@@ -144,6 +262,9 @@ export const DEFAULTS = {
 
   /** Graceful shutdown timeout in milliseconds */
   SHUTDOWN_TIMEOUT_MS: 30000,
+
+  /** Benchmark output directory */
+  BENCHMARK_DIR: './benchmark',
 } as const;
 
 export type Defaults = typeof DEFAULTS;

@@ -9,6 +9,7 @@
  */
 
 import { z } from 'zod';
+import { GenerationReferencesSchema } from './reference.types.js';
 
 // =============================================================================
 // Job Status (State Machine)
@@ -61,6 +62,18 @@ export const JobSchema = z.object({
 
   /** ISO 8601 timestamp of last state change */
   updatedAt: z.string().datetime(),
+
+  /**
+   * Optional reference images for controlled generation.
+   *
+   * When present, enables Structure-Conditioned Style Transfer:
+   * - Subject Reference: Maintain product/person identity
+   * - Control Reference: Structure from edges/sketches
+   * - Style Reference: Visual style from reference image
+   *
+   * The system automatically uses imagen-3.0-capability-001 when present.
+   */
+  references: GenerationReferencesSchema.optional(),
 });
 
 export type Job = z.infer<typeof JobSchema>;

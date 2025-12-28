@@ -180,3 +180,4 @@ export function serializeSSE(event: SystemEvent, id?: string): string {
   return lines.join('\n') + '\n';
 }
 
+
