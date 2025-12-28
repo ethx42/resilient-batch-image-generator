@@ -7,8 +7,24 @@
  * @module core/state/state-manager
  */
 
-import type { Job, JobStats } from '../../types/index.js';
-import type { IJobRepository } from './job.repository.js';
+import { existsSync } from 'fs';
+import type { Job, JobStats, JobStatus, GenerationReferences } from '../../types/index.js';
+import type { IJobRepository, JobCreateInput } from './job.repository.js';
+
+// =============================================================================
+// Atomic Update Types
+// =============================================================================
+
+/**
+ * Allowed fields for atomic job updates.
+ * Includes references for controlled generation.
+ */
+export interface JobAtomicUpdate {
+  readonly references?: GenerationReferences | undefined;
+  readonly updatedAt?: string;
+  /** When true, removes references from the job */
+  readonly clearReferences?: boolean;
+}
 
 // =============================================================================
 // State Manager Configuration
@@ -182,6 +198,51 @@ export class StateManager {
   }
 
   /**
+   * Get jobs by status.
+   *
+   * @param status - The status to filter by
+   * @returns Array of jobs with the specified status
+   */
+  async getJobsByStatus(status: JobStatus): Promise<readonly Job[]> {
+    return this.repository.findByStatus(status);
+  }
+
+  /**
+   * Atomically update a job with arbitrary fields.
+   *
+   * Used for operations like attaching references to a job.
+   * This method provides a generic update mechanism for fields
+   * that don't have dedicated methods.
+   *
+   * @param jobId - ID of the job to update
+   * @param updates - Fields to update (references, updatedAt, etc.)
+   */
+  async atomicUpdate(jobId: number, updates: JobAtomicUpdate): Promise<void> {
+    const job = await this.repository.findById(jobId);
+
+    if (!job) {
+      throw new Error(`Cannot update non-existent job: ${jobId}`);
+    }
+
+    // Determine the new references value
+    let newReferences = job.references;
+    if (updates.clearReferences) {
+      newReferences = undefined;
+    } else if (updates.references !== undefined) {
+      newReferences = updates.references;
+    }
+
+    // Merge updates with existing job
+    const updatedJob: Job = {
+      ...job,
+      references: newReferences,
+      updatedAt: updates.updatedAt ?? new Date().toISOString(),
+    };
+
+    await this.repository.save(updatedJob);
+  }
+
+  /**
    * Get job statistics.
    */
   async getStats(): Promise<JobStats> {
@@ -201,6 +262,17 @@ export class StateManager {
    */
   async initializeFromPrompts(prompts: readonly string[]): Promise<void> {
     await this.repository.initializeFromPrompts([...prompts]);
+  }
+
+  /**
+   * Initialize jobs with optional references.
+   *
+   * Use this when you have extended prompts with reference images.
+   *
+   * @param inputs - Array of job inputs (prompt + optional references)
+   */
+  async initializeFromJobInputs(inputs: readonly JobCreateInput[]): Promise<void> {
+    await this.repository.initializeFromJobInputs(inputs);
   }
 
   /**
@@ -228,6 +300,58 @@ export class StateManager {
    */
   getRepository(): IJobRepository {
     return this.repository;
+  }
+
+  /**
+   * Reset all jobs to PENDING status.
+   *
+   * Used to restart the batch from the beginning.
+   * Clears output paths and error logs, resets retry counts.
+   */
+  async resetAllJobs(): Promise<void> {
+    const jobs = await this.repository.findAll();
+
+    for (const job of jobs) {
+      await this.repository.updateStatus(job.id, 'PENDING', {
+        outputPath: undefined,
+        errorLog: undefined,
+        retries: 0,
+      });
+    }
+  }
+
+  /**
+   * Validate that all DONE jobs have their output files present.
+   * Jobs marked as DONE but with missing output files are reset to PENDING.
+   *
+   * This handles the case where:
+   * - Output files were manually deleted
+   * - Files were lost due to system issues
+   * - State got out of sync with filesystem
+   *
+   * @returns Number of jobs that were reset
+   */
+  async validateAndResetMissingOutputs(): Promise<number> {
+    const jobs = await this.repository.findAll();
+    let resetCount = 0;
+
+    for (const job of jobs) {
+      // Only check DONE jobs with an outputPath
+      if (job.status === 'DONE' && job.outputPath) {
+        // Check if the file exists
+        if (!existsSync(job.outputPath)) {
+          // File is missing - reset to PENDING
+          await this.repository.updateStatus(job.id, 'PENDING', {
+            outputPath: undefined,
+            errorLog: 'Output file was missing, resetting for regeneration',
+            retries: 0,
+          });
+          resetCount++;
+        }
+      }
+    }
+
+    return resetCount;
   }
 }
 

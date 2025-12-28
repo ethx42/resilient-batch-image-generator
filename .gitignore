@@ -23,7 +23,7 @@ dist/
 
 # Generated images
 output/
-benchmark/
+/benchmark/
 
 # Reference images
 config/references/

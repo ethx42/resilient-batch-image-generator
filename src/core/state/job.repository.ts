@@ -7,10 +7,24 @@
  * @module core/state/job.repository
  */
 
-import type { Job, JobsFile, JobStatus, JobStats, PromptsInput } from '../../types/index.js';
+import type { Job, JobsFile, JobStatus, JobStats, PromptsInput, GenerationReferences } from '../../types/index.js';
 import { JobsFileSchema } from '../../types/index.js';
 import { DEFAULTS } from '../../types/config.types.js';
 import { atomicWriteJSON, safeReadJSON, StateCorruptionError } from '../../utils/index.js';
+
+// =============================================================================
+// Types for Job Creation
+// =============================================================================
+
+/**
+ * Input for creating a job with optional references.
+ */
+export interface JobCreateInput {
+  /** The prompt text */
+  readonly prompt: string;
+  /** Optional references for controlled generation */
+  readonly references?: GenerationReferences | undefined;
+}
 
 // =============================================================================
 // Repository Interface
@@ -75,6 +89,12 @@ export interface IJobRepository {
    * Creates new PENDING jobs for each prompt.
    */
   initializeFromPrompts(prompts: PromptsInput): Promise<void>;
+
+  /**
+   * Initialize the repository from a list of job inputs with optional references.
+   * Creates new PENDING jobs for each input.
+   */
+  initializeFromJobInputs(inputs: readonly JobCreateInput[]): Promise<void>;
 
   // -------------------------------------------------------------------------
   // Statistics
@@ -187,15 +207,22 @@ export class JsonJobRepository implements IJobRepository {
   // -------------------------------------------------------------------------
 
   async initializeFromPrompts(prompts: PromptsInput): Promise<void> {
+    // Convert to JobCreateInput format
+    const inputs: JobCreateInput[] = prompts.map((prompt) => ({ prompt }));
+    await this.initializeFromJobInputs(inputs);
+  }
+
+  async initializeFromJobInputs(inputs: readonly JobCreateInput[]): Promise<void> {
     const now = new Date().toISOString();
 
-    const jobs: Job[] = prompts.map((prompt, index) => ({
+    const jobs: Job[] = inputs.map((input, index) => ({
       id: index + 1, // 1-indexed
-      prompt,
+      prompt: input.prompt,
       status: 'PENDING' as const,
       retries: 0,
       createdAt: now,
       updatedAt: now,
+      references: input.references,
     }));
 
     const state: JobsFile = {
@@ -304,6 +331,7 @@ export class JsonJobRepository implements IJobRepository {
           errorLog: job.errorLog,
           createdAt: job.createdAt,
           updatedAt: job.updatedAt,
+          references: job.references,
         })),
       };
 

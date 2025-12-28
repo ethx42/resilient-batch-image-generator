@@ -7,8 +7,10 @@
 // State Management
 export {
   type IJobRepository,
+  type JobCreateInput,
   JsonJobRepository,
   type StateManagerConfig,
+  type JobAtomicUpdate,
   StateManager,
 } from "./state/index.js";
 
@@ -19,6 +21,11 @@ export { EventBus } from "./events/index.js";
 export {
   type ImageMetadata,
   ImagePersistenceService,
+  type EditableConfig,
+  ConfigService,
+  type ReferenceLoaderConfig,
+  type LoadedReference,
+  ReferenceLoaderService,
 } from "./services/index.js";
 
 // Orchestrator

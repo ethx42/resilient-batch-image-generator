@@ -67,21 +67,73 @@ export class Orchestrator {
   private currentJobId: number | null = null;
   private processedCount = 0;
   private startTime: Date | null = null;
+  private generator: ImageGenerator;
 
-  private readonly logger: pino.Logger;
+  private logger: pino.Logger;
 
   constructor(
     private readonly stateManager: StateManager,
-    private readonly generator: ImageGenerator,
+    initialGenerator: ImageGenerator,
     private readonly imagePersistence: ImagePersistenceService,
     private readonly eventBus: EventBus,
-    private readonly config: OrchestratorConfig
+    private readonly config: OrchestratorConfig,
+    private readonly getMasterAesthetic: () => string
   ) {
+    this.generator = initialGenerator;
+    this.logger = createChildLogger(defaultLogger, {
+      component: "Orchestrator",
+      provider: initialGenerator.providerName,
+      model: initialGenerator.modelId,
+    });
+  }
+
+  /**
+   * Set a new image generator.
+   * Must be called before start() takes effect.
+   *
+   * @returns true if generator was updated, false if batch is running
+   */
+  setGenerator(generator: ImageGenerator): boolean {
+    if (this.isRunning) {
+      this.logger.warn(
+        {
+          requestedModel: generator.modelId,
+          currentModel: this.generator.modelId,
+        },
+        "Cannot change generator while batch is running - stop first"
+      );
+      return false;
+    }
+
+    const previousModel = this.generator.modelId;
+    this.generator = generator;
+
+    // Re-initialize logger with new model context
     this.logger = createChildLogger(defaultLogger, {
       component: "Orchestrator",
       provider: generator.providerName,
       model: generator.modelId,
     });
+
+    this.logger.info(
+      {
+        previousModel,
+        newModel: generator.modelId,
+        provider: generator.providerName,
+      },
+      "Generator successfully updated"
+    );
+    return true;
+  }
+
+  /**
+   * Get current generator info.
+   */
+  getGeneratorInfo(): { providerName: string; modelId: string } {
+    return {
+      providerName: this.generator.providerName,
+      modelId: this.generator.modelId,
+    };
   }
 
   /**
@@ -183,12 +235,22 @@ export class Orchestrator {
     this.currentJobId = job.id;
     const startTime = performance.now();
 
+    const masterAesthetic = this.getMasterAesthetic();
     this.logger.info(
       {
         jobId: job.id,
         promptPreview:
           job.prompt.slice(0, 50) + (job.prompt.length > 50 ? "..." : ""),
+        masterAestheticActive: !!masterAesthetic,
+        masterAestheticPreview: masterAesthetic
+          ? masterAesthetic.slice(0, 50) +
+            (masterAesthetic.length > 50 ? "..." : "")
+          : "(none)",
         retries: job.retries,
+        hasReferences: !!job.references,
+        hasSubjectRefs: !!job.references?.subject?.length,
+        hasControlRef: !!job.references?.control,
+        hasStyleRef: !!job.references?.style,
       },
       "Processing job"
     );
@@ -204,11 +266,19 @@ export class Orchestrator {
     });
 
     try {
-      // Generate image
-      const result = await this.generator.generate(job.prompt);
+      // Generate image (with optional references for controlled generation)
+      const generationOptions = job.references
+        ? { references: job.references }
+        : undefined;
+      const result = await this.generator.generate(
+        job.prompt,
+        generationOptions
+      );
 
       // Build metadata for embedding in the image
+      // Include the master aesthetic so the full generation context is preserved
       const metadata: ImageMetadata = {
+        masterAesthetic: this.getMasterAesthetic(),
         prompt: job.prompt,
         model: this.generator.modelId,
         provider: this.generator.providerName,
