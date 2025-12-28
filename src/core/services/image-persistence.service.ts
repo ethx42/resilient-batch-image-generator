@@ -23,7 +23,9 @@ import type pino from "pino";
  * Metadata to embed in the generated image.
  */
 export interface ImageMetadata {
-  /** The prompt used to generate the image */
+  /** The master aesthetic prompt (style guide) */
+  readonly masterAesthetic: string;
+  /** The specific prompt used for this image */
   readonly prompt: string;
   /** The AI model identifier */
   readonly model: string;
@@ -188,7 +190,7 @@ export class ImagePersistenceService {
    * For JPEG: Uses EXIF metadata
    *
    * Metadata stored:
-   * - ImageDescription: The generation prompt
+   * - ImageDescription: Full prompt (master aesthetic + specific prompt)
    * - Software: Provider and model info
    * - Artist: "RBIG (Resilient Batch Image Generator)"
    * - Copyright: Generation timestamp
@@ -199,9 +201,14 @@ export class ImagePersistenceService {
     metadata: ImageMetadata
   ): Promise<Buffer> {
     try {
-      // Build EXIF-compatible metadata
+      // Build the full prompt description (aesthetic + prompt)
+      // This is the same format sent to the AI for generation
+      const fullPrompt = metadata.masterAesthetic
+        ? `[STYLE] ${metadata.masterAesthetic}\n\n[PROMPT] ${metadata.prompt}`
+        : metadata.prompt;
+
       // Note: EXIF fields have length limits, so we truncate if needed
-      const description = metadata.prompt.slice(0, 2000); // EXIF limit
+      const description = fullPrompt.slice(0, 2000); // EXIF limit
       const software = `RBIG/${metadata.provider}/${metadata.model}`;
       const timestamp = metadata.generatedAt.toISOString();
 
