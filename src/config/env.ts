@@ -15,17 +15,42 @@ import { defaultLogger } from './logger.js';
 // =============================================================================
 
 /**
+ * Parse command line arguments for environment overrides.
+ * Supports --port <number> to override PORT environment variable.
+ */
+function parseCommandLineArgs(): Partial<Record<string, string>> {
+  const overrides: Partial<Record<string, string>> = {};
+  const args = process.argv.slice(2);
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--port' && i + 1 < args.length) {
+      overrides.PORT = args[i + 1];
+      i++; // Skip next argument as it's the value
+    }
+  }
+
+  return overrides;
+}
+
+/**
  * Load and validate environment configuration.
  *
  * This function:
  * 1. Reads all environment variables
- * 2. Validates against the EnvSchema
- * 3. Returns the typed configuration
+ * 2. Applies command line argument overrides (e.g., --port)
+ * 3. Validates against the EnvSchema
+ * 4. Returns the typed configuration
  *
  * @throws {Error} If validation fails (with detailed Zod error)
  */
 export function loadEnvConfig(): EnvConfig {
-  const result = EnvSchema.safeParse(process.env);
+  // Parse command line arguments for overrides
+  const cliOverrides = parseCommandLineArgs();
+  
+  // Merge environment variables with CLI overrides (CLI takes precedence)
+  const envWithOverrides = { ...process.env, ...cliOverrides };
+  
+  const result = EnvSchema.safeParse(envWithOverrides);
 
   if (!result.success) {
     const errors = result.error.errors.map((e) => {
@@ -70,5 +95,6 @@ export function getEnv(): EnvConfig {
 export function resetEnvCache(): void {
   cachedEnv = null;
 }
+
 
 

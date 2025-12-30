@@ -48,6 +48,19 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .model-card:not(.selected):hover { border-color: #3e3e5e; }
     .image-card:hover img { transform: scale(1.02); }
     .image-card img { transition: transform 0.2s ease; }
+    /* Ensure content sections are not hidden behind other elements */
+    section { position: relative; z-index: 1; }
+    #reference-guide { position: relative; z-index: 2; }
+    /* Batch preview animations */
+    @keyframes slide-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .preview-board { animation: slide-up 0.3s ease-out; }
+    /* Smooth transitions for interactive elements */
+    button, input, textarea { transition: all 0.2s ease; }
+    /* Scrollbar styling for preview */
+    #board-preview-grid::-webkit-scrollbar { width: 6px; }
+    #board-preview-grid::-webkit-scrollbar-track { background: #12121a; border-radius: 3px; }
+    #board-preview-grid::-webkit-scrollbar-thumb { background: #1e1e2e; border-radius: 3px; }
+    #board-preview-grid::-webkit-scrollbar-thumb:hover { background: #2e2e3e; }
   </style>
 </head>
 <body class="bg-rbig-dark text-gray-100 min-h-screen">
@@ -149,19 +162,25 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       <div class="bg-gradient-to-r from-rbig-cyan/10 to-blue-600/10 border border-rbig-cyan/30 rounded-xl p-4">
         <div class="flex items-start gap-3">
           <span class="text-2xl">⚡</span>
-          <div>
+          <div class="flex-1">
             <h3 class="font-semibold text-gray-200">Parallel Generation</h3>
-            <p class="text-sm text-gray-400 mt-1">Process multiple prompts in parallel with controlled concurrency. Uses online predictions with multiple simultaneous requests.</p>
+            <p class="text-sm text-gray-400 mt-1">Process multiple prompts in parallel with controlled concurrency. Preview your batch organization before starting.</p>
           </div>
         </div>
       </div>
       
       <!-- Batch Configuration -->
       <section class="bg-rbig-card border border-rbig-border rounded-xl p-6">
-        <h2 class="text-lg font-semibold text-gray-300 mb-4 flex items-center gap-2"><span class="text-rbig-cyan">📝</span> Prompts JSON</h2>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-300 flex items-center gap-2"><span class="text-rbig-cyan">📝</span> Prompts JSON</h2>
+          <div class="flex gap-2">
+            <button onclick="loadExampleBatch()" class="text-xs px-3 py-1.5 bg-rbig-dark/50 hover:bg-rbig-dark border border-rbig-border rounded-lg text-gray-400 hover:text-white transition-colors">📋 Example</button>
+            <button onclick="validateBatchJson()" class="text-xs px-3 py-1.5 bg-rbig-dark/50 hover:bg-rbig-dark border border-rbig-border rounded-lg text-gray-400 hover:text-white transition-colors">✓ Validate</button>
+          </div>
+        </div>
         
         <!-- Format Examples -->
-        <div class="mb-4 p-4 bg-rbig-dark/50 rounded-lg border border-rbig-border/50">
+        <div class="mb-4 p-3 bg-rbig-dark/50 rounded-lg border border-rbig-border/50">
           <p class="text-xs text-gray-500 mb-2">💡 Supported formats:</p>
           <div class="flex gap-4 flex-wrap text-xs font-mono">
             <div class="flex-1 min-w-48">
@@ -175,89 +194,133 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           </div>
         </div>
         
-        <textarea id="batch-json-input" rows="10" placeholder='[
+        <textarea id="batch-json-input" rows="8" placeholder='[
   "A cat in a cyberpunk city",
   "A robot playing chess",
   "Northern lights over mountains"
-]' class="w-full bg-rbig-dark border border-rbig-border rounded-lg p-4 text-sm text-gray-300 font-mono focus:border-rbig-cyan focus:outline-none"></textarea>
+]' class="w-full bg-rbig-dark border border-rbig-border rounded-lg p-4 text-sm text-gray-300 font-mono focus:border-rbig-cyan focus:outline-none transition-colors" oninput="calculateBatchPreview()"></textarea>
         
         <div class="flex items-center justify-between mt-3">
-          <div class="flex gap-4 items-center">
-            <button onclick="loadExampleBatch()" class="text-sm text-rbig-cyan hover:underline">📋 Load Example</button>
-            <button onclick="validateBatchJson()" class="text-sm text-gray-400 hover:text-white">✓ Validate</button>
-          </div>
           <p id="batch-json-status" class="text-sm text-gray-500"></p>
+          <p id="batch-prompt-count-display" class="text-xs text-gray-600 font-mono"></p>
         </div>
       </section>
       
-      <!-- Model & Concurrency -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Model Selection -->
-        <section class="bg-rbig-card border border-rbig-border rounded-xl p-6">
-          <h2 class="text-lg font-semibold text-gray-300 mb-4 flex items-center gap-2"><span class="text-rbig-pink">🤖</span> Model</h2>
-          <div id="batch-tab-model-grid" class="space-y-2">
-            <p class="text-gray-500 text-sm">Loading models...</p>
-          </div>
-        </section>
-        
-        <!-- Settings -->
-        <section class="bg-rbig-card border border-rbig-border rounded-xl p-6">
-          <h2 class="text-lg font-semibold text-gray-300 mb-4 flex items-center gap-2"><span class="text-rbig-warning">⚡</span> Settings</h2>
+      <!-- Preview & Configuration Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left: Model & Settings -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Model Selection -->
+          <section class="bg-rbig-card border border-rbig-border rounded-xl p-6">
+            <h2 class="text-lg font-semibold text-gray-300 mb-4 flex items-center gap-2"><span class="text-rbig-pink">🤖</span> Model</h2>
+            <div id="batch-tab-model-grid" class="space-y-2">
+              <p class="text-gray-500 text-sm">Loading models...</p>
+            </div>
+          </section>
           
-          <div class="space-y-4">
-            <!-- Aspect Ratio -->
-            <div>
-              <label class="block text-sm text-gray-500 mb-2">Aspect Ratio</label>
-              <div class="grid grid-cols-5 gap-2">
-                <button type="button" onclick="selectBatchAspectRatio('1:1')" id="ar-1-1" class="aspect-ratio-btn p-2 rounded-lg border border-rbig-cyan bg-rbig-cyan/10 text-center">
-                  <div class="w-6 h-6 mx-auto border-2 border-current rounded-sm"></div>
-                  <span class="text-xs mt-1 block">1:1</span>
-                </button>
-                <button type="button" onclick="selectBatchAspectRatio('16:9')" id="ar-16-9" class="aspect-ratio-btn p-2 rounded-lg border border-rbig-border hover:border-rbig-border/80 text-center text-gray-400">
-                  <div class="w-8 h-5 mx-auto border-2 border-current rounded-sm"></div>
-                  <span class="text-xs mt-1 block">16:9</span>
-                </button>
-                <button type="button" onclick="selectBatchAspectRatio('9:16')" id="ar-9-16" class="aspect-ratio-btn p-2 rounded-lg border border-rbig-border hover:border-rbig-border/80 text-center text-gray-400">
-                  <div class="w-4 h-7 mx-auto border-2 border-current rounded-sm"></div>
-                  <span class="text-xs mt-1 block">9:16</span>
-                </button>
-                <button type="button" onclick="selectBatchAspectRatio('4:3')" id="ar-4-3" class="aspect-ratio-btn p-2 rounded-lg border border-rbig-border hover:border-rbig-border/80 text-center text-gray-400">
-                  <div class="w-6 h-5 mx-auto border-2 border-current rounded-sm"></div>
-                  <span class="text-xs mt-1 block">4:3</span>
-                </button>
-                <button type="button" onclick="selectBatchAspectRatio('3:4')" id="ar-3-4" class="aspect-ratio-btn p-2 rounded-lg border border-rbig-border hover:border-rbig-border/80 text-center text-gray-400">
-                  <div class="w-5 h-6 mx-auto border-2 border-current rounded-sm"></div>
-                  <span class="text-xs mt-1 block">3:4</span>
-                </button>
+          <!-- Settings -->
+          <section class="bg-rbig-card border border-rbig-border rounded-xl p-6">
+            <h2 class="text-lg font-semibold text-gray-300 mb-4 flex items-center gap-2"><span class="text-rbig-warning">⚡</span> Settings</h2>
+            
+            <div class="space-y-5">
+              <!-- Aspect Ratio -->
+              <div>
+                <label class="block text-sm text-gray-500 mb-3">Aspect Ratio</label>
+                <div class="grid grid-cols-5 gap-2">
+                  <button type="button" onclick="selectBatchAspectRatio('1:1')" id="ar-1-1" class="aspect-ratio-btn p-2 rounded-lg border border-rbig-cyan bg-rbig-cyan/10 text-center transition-all">
+                    <div class="w-6 h-6 mx-auto border-2 border-current rounded-sm"></div>
+                    <span class="text-xs mt-1 block">1:1</span>
+                  </button>
+                  <button type="button" onclick="selectBatchAspectRatio('16:9')" id="ar-16-9" class="aspect-ratio-btn p-2 rounded-lg border border-rbig-border hover:border-rbig-border/80 text-center text-gray-400 transition-all">
+                    <div class="w-8 h-5 mx-auto border-2 border-current rounded-sm"></div>
+                    <span class="text-xs mt-1 block">16:9</span>
+                  </button>
+                  <button type="button" onclick="selectBatchAspectRatio('9:16')" id="ar-9-16" class="aspect-ratio-btn p-2 rounded-lg border border-rbig-border hover:border-rbig-border/80 text-center text-gray-400 transition-all">
+                    <div class="w-4 h-7 mx-auto border-2 border-current rounded-sm"></div>
+                    <span class="text-xs mt-1 block">9:16</span>
+                  </button>
+                  <button type="button" onclick="selectBatchAspectRatio('4:3')" id="ar-4-3" class="aspect-ratio-btn p-2 rounded-lg border border-rbig-border hover:border-rbig-border/80 text-center text-gray-400 transition-all">
+                    <div class="w-6 h-5 mx-auto border-2 border-current rounded-sm"></div>
+                    <span class="text-xs mt-1 block">4:3</span>
+                  </button>
+                  <button type="button" onclick="selectBatchAspectRatio('3:4')" id="ar-3-4" class="aspect-ratio-btn p-2 rounded-lg border border-rbig-border hover:border-rbig-border/80 text-center text-gray-400 transition-all">
+                    <div class="w-5 h-6 mx-auto border-2 border-current rounded-sm"></div>
+                    <span class="text-xs mt-1 block">3:4</span>
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Concurrency -->
+              <div>
+                <label class="block text-sm text-gray-500 mb-3">Concurrency (parallel requests)</label>
+                <div class="flex items-center gap-4">
+                  <input type="range" id="batch-concurrency" min="1" max="10" value="3" class="flex-1 accent-rbig-cyan" oninput="updateBatchConcurrency(); calculateBatchPreview();">
+                  <span id="batch-concurrency-value" class="text-xl font-mono text-rbig-cyan w-10 text-center">3</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">⚠️ Higher values may trigger rate limits</p>
+              </div>
+              
+              <!-- Output Directory -->
+              <div>
+                <label class="block text-sm text-gray-500 mb-2">Output Directory (optional)</label>
+                <input type="text" id="batch-output-dir" placeholder="batch-1" class="w-full bg-rbig-dark border border-rbig-border rounded-lg px-4 py-2 text-sm text-gray-300 font-mono focus:border-rbig-cyan focus:outline-none transition-colors">
+              </div>
+            </div>
+          </section>
+        </div>
+        
+        <!-- Right: Preview Panel -->
+        <div class="lg:col-span-1">
+          <section class="bg-rbig-card border border-rbig-border rounded-xl p-6 sticky top-6">
+            <h2 class="text-lg font-semibold text-gray-300 mb-4 flex items-center gap-2"><span class="text-rbig-success">📊</span> Batch Preview</h2>
+            
+            <!-- Preview Stats -->
+            <div id="batch-preview-stats" class="space-y-4">
+              <div class="bg-rbig-dark/50 rounded-lg p-4 border border-rbig-border/50">
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p class="text-gray-500 text-xs mb-1">Prompts</p>
+                    <p id="preview-prompt-count" class="text-2xl font-bold text-gray-200 font-mono">0</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-500 text-xs mb-1">Images</p>
+                    <p id="preview-image-count" class="text-2xl font-bold text-rbig-cyan font-mono">0</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-500 text-xs mb-1">Boards</p>
+                    <p id="preview-board-count" class="text-2xl font-bold text-rbig-success font-mono">0</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-500 text-xs mb-1">Est. Time</p>
+                    <p id="preview-time-estimate" class="text-2xl font-bold text-rbig-warning font-mono">0m</p>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Board Layout Preview -->
+              <div id="board-preview-container" class="hidden">
+                <p class="text-xs text-gray-500 mb-3">Layout Preview (6 images per board)</p>
+                <div id="board-preview-grid" class="space-y-3 max-h-64 overflow-y-auto pr-2">
+                  <!-- Boards will be rendered here -->
+                </div>
+              </div>
+              
+              <!-- Empty State -->
+              <div id="preview-empty-state" class="text-center py-8">
+                <div class="text-4xl mb-2">📐</div>
+                <p class="text-sm text-gray-500">Enter prompts to see preview</p>
               </div>
             </div>
             
-            <!-- Concurrency -->
-            <div>
-              <label class="block text-sm text-gray-500 mb-2">Concurrency (parallel requests)</label>
-              <div class="flex items-center gap-4">
-                <input type="range" id="batch-concurrency" min="1" max="10" value="3" class="flex-1 accent-rbig-cyan" oninput="updateBatchConcurrency()">
-                <span id="batch-concurrency-value" class="text-xl font-mono text-rbig-cyan w-8 text-center">3</span>
-              </div>
-              <p class="text-xs text-gray-500 mt-2">⚠️ Higher values may trigger rate limits</p>
+            <!-- Start Button -->
+            <div class="mt-6 pt-6 border-t border-rbig-border">
+              <button id="btn-start-batch" onclick="startBatchGeneration()" class="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-rbig-cyan to-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-rbig-cyan/20 disabled:opacity-50 disabled:cursor-not-allowed text-base transition-all hover:shadow-xl hover:shadow-rbig-cyan/30">
+                <span>⚡</span>
+                <span>Start Generation</span>
+              </button>
+              <p id="batch-ready-status" class="text-xs text-center text-gray-600 mt-2"></p>
             </div>
-            
-            <!-- Output Directory -->
-            <div>
-              <label class="block text-sm text-gray-500 mb-2">Output Directory (optional)</label>
-              <input type="text" id="batch-output-dir" placeholder="batch-1" class="w-full bg-rbig-dark border border-rbig-border rounded-lg px-4 py-2 text-sm text-gray-300 font-mono focus:border-rbig-cyan focus:outline-none">
-            </div>
-          </div>
-        </section>
-      </div>
-      
-      <!-- Start Button -->
-      <div class="flex items-center gap-4">
-        <button id="btn-start-batch" onclick="startBatchGeneration()" class="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-rbig-cyan to-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-rbig-cyan/20 disabled:opacity-50 text-lg">
-          ⚡ Start Parallel Generation
-        </button>
-        <div id="batch-estimate" class="text-sm text-gray-500">
-          <span id="batch-prompt-count">0</span> prompts • ~<span id="batch-time-estimate">0</span> min estimated
+          </section>
         </div>
       </div>
       
@@ -302,10 +365,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       </div>
       
       <!-- Reference Images Guide -->
-      <section class="bg-rbig-card border border-rbig-border rounded-xl p-5">
+      <section class="bg-rbig-card border border-rbig-border rounded-xl p-5 relative z-10">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-sm font-semibold text-gray-300 flex items-center gap-2">📸 Reference Images Guide</h3>
-          <button onclick="toggleReferenceGuide()" class="text-xs text-rbig-cyan hover:underline">Show/Hide</button>
+          <button id="reference-guide-toggle" onclick="toggleReferenceGuide()" class="text-xs text-rbig-cyan hover:underline">Hide</button>
         </div>
         
         <div id="reference-guide" class="space-y-4 text-sm">
@@ -513,7 +576,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
       });
       if (tab === 'benchmark') { loadBenchmarkModels(); loadPreviousRuns(); }
-      if (tab === 'batch') { loadBatchTabModels(); }
+      if (tab === 'batch') { loadBatchTabModels(); calculateBatchPreview(); }
     }
     
     // === CONFIG EDITING ===
@@ -685,6 +748,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       state.batch.selectedModel = id;
       renderBatchTabModels();
       renderBatchModelGrid(); // Also update config tab
+      calculateBatchPreview(); // Update preview when model changes
     }
     
     function updateBatchConcurrency() {
@@ -697,9 +761,126 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       // Update UI
       document.querySelectorAll('#panel-batch .aspect-ratio-btn').forEach(btn => {
         const isSelected = btn.id === 'ar-' + ratio.replace(':', '-');
-        btn.className = 'aspect-ratio-btn p-2 rounded-lg border text-center ' + 
+        btn.className = 'aspect-ratio-btn p-2 rounded-lg border text-center transition-all ' + 
           (isSelected ? 'border-rbig-cyan bg-rbig-cyan/10 text-rbig-cyan' : 'border-rbig-border hover:border-rbig-border/80 text-gray-400');
       });
+      calculateBatchPreview();
+    }
+    
+    // Calculate batch preview with board organization
+    function calculateBatchPreview() {
+      const data = validateBatchJson();
+      const previewStats = document.getElementById('batch-preview-stats');
+      const previewEmpty = document.getElementById('preview-empty-state');
+      const boardContainer = document.getElementById('board-preview-container');
+      const readyStatus = document.getElementById('batch-ready-status');
+      
+      if (!data || data.length === 0) {
+        previewEmpty.classList.remove('hidden');
+        boardContainer.classList.add('hidden');
+        document.getElementById('preview-prompt-count').textContent = '0';
+        document.getElementById('preview-image-count').textContent = '0';
+        document.getElementById('preview-board-count').textContent = '0';
+        document.getElementById('preview-time-estimate').textContent = '0m';
+        readyStatus.textContent = '';
+        return;
+      }
+      
+      previewEmpty.classList.add('hidden');
+      boardContainer.classList.remove('hidden');
+      
+      // Calculate prompts
+      const prompts = data.map(item => {
+        if (typeof item === 'string') return item;
+        if (item.text) return item.text;
+        return null;
+      }).filter(p => p && p.trim().length > 0);
+      
+      const promptCount = prompts.length;
+      const imageCount = promptCount; // One image per prompt
+      const imagesPerBoard = 6; // Standard grid: 3x2 or 2x3
+      const boardCount = Math.ceil(imageCount / imagesPerBoard);
+      
+      // Calculate time estimate
+      const concurrency = parseInt(document.getElementById('batch-concurrency').value) || 3;
+      const avgTimePerImage = 20; // seconds
+      const totalSeconds = Math.ceil((imageCount * avgTimePerImage) / concurrency);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      const timeEstimate = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+      
+      // Update stats
+      document.getElementById('preview-prompt-count').textContent = promptCount;
+      document.getElementById('preview-image-count').textContent = imageCount;
+      document.getElementById('preview-board-count').textContent = boardCount;
+      document.getElementById('preview-time-estimate').textContent = timeEstimate;
+      
+      // Render board preview
+      renderBoardPreview(prompts, imagesPerBoard, boardCount);
+      
+      // Update ready status
+      const hasModel = state.batch.selectedModel !== null;
+      if (hasModel && promptCount > 0) {
+        readyStatus.textContent = '✓ Ready to generate';
+        readyStatus.className = 'text-xs text-center text-rbig-success mt-2';
+        document.getElementById('btn-start-batch').disabled = false;
+      } else if (promptCount > 0) {
+        readyStatus.textContent = '⚠ Select a model';
+        readyStatus.className = 'text-xs text-center text-rbig-warning mt-2';
+        document.getElementById('btn-start-batch').disabled = true;
+      } else {
+        readyStatus.textContent = '';
+        document.getElementById('btn-start-batch').disabled = true;
+      }
+    }
+    
+    function renderBoardPreview(prompts, imagesPerBoard, boardCount) {
+      const grid = document.getElementById('board-preview-grid');
+      grid.innerHTML = '';
+      
+      for (let boardIndex = 0; boardIndex < boardCount; boardIndex++) {
+        const startIdx = boardIndex * imagesPerBoard;
+        const endIdx = Math.min(startIdx + imagesPerBoard, prompts.length);
+        const boardPrompts = prompts.slice(startIdx, endIdx);
+        
+        const boardDiv = document.createElement('div');
+        boardDiv.className = 'bg-rbig-dark/50 rounded-lg p-3 border border-rbig-border/50 preview-board';
+        
+        const header = document.createElement('div');
+        header.className = 'flex items-center justify-between mb-2';
+        header.innerHTML = `<span class="text-xs font-semibold text-gray-400">Board ${boardIndex + 1}</span><span class="text-xs text-gray-600 font-mono">${boardPrompts.length} images</span>`;
+        boardDiv.appendChild(header);
+        
+        const previewGrid = document.createElement('div');
+        previewGrid.className = 'grid grid-cols-3 gap-1.5';
+        
+        boardPrompts.forEach((prompt, idx) => {
+          const cell = document.createElement('div');
+          cell.className = 'aspect-square bg-rbig-card border border-rbig-border/30 rounded flex items-center justify-center relative group';
+          cell.innerHTML = `
+            <div class="absolute inset-0 flex items-center justify-center">
+              <span class="text-xs text-gray-600 font-mono">${startIdx + idx + 1}</span>
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded">
+              <div class="absolute bottom-0 left-0 right-0 p-1">
+                <p class="text-[8px] text-white/90 truncate px-1">${escapeHtml(prompt.slice(0, 30))}${prompt.length > 30 ? '...' : ''}</p>
+              </div>
+            </div>
+          `;
+          previewGrid.appendChild(cell);
+        });
+        
+        // Fill empty cells
+        const emptyCells = imagesPerBoard - boardPrompts.length;
+        for (let i = 0; i < emptyCells; i++) {
+          const cell = document.createElement('div');
+          cell.className = 'aspect-square bg-rbig-dark/30 border border-rbig-border/20 rounded border-dashed';
+          previewGrid.appendChild(cell);
+        }
+        
+        boardDiv.appendChild(previewGrid);
+        grid.appendChild(boardDiv);
+      }
     }
     
     function loadExampleBatch() {
@@ -721,15 +902,17 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         "An ancient library with magical floating books and glowing runes"
       ], null, 2);
       validateBatchJson();
+      calculateBatchPreview();
     }
     
     function validateBatchJson() {
       const input = document.getElementById('batch-json-input').value.trim();
       const status = document.getElementById('batch-json-status');
+      const countDisplay = document.getElementById('batch-prompt-count-display');
       
       if (!input) {
         status.textContent = '';
-        updateBatchEstimate(0);
+        countDisplay.textContent = '';
         return null;
       }
       
@@ -738,6 +921,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         if (!Array.isArray(data)) {
           status.textContent = '❌ Must be an array';
           status.className = 'text-sm text-rbig-error';
+          countDisplay.textContent = '';
           return null;
         }
         
@@ -746,25 +930,18 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           if (typeof item === 'string') return item;
           if (item.text) return item.text;
           return null;
-        }).filter(p => p);
+        }).filter(p => p && p.trim().length > 0);
         
-        status.textContent = '✅ ' + prompts.length + ' prompts';
+        status.textContent = '✅ Valid JSON';
         status.className = 'text-sm text-rbig-success';
-        updateBatchEstimate(prompts.length);
+        countDisplay.textContent = prompts.length > 0 ? `${prompts.length} prompt${prompts.length !== 1 ? 's' : ''}` : '';
         return data;
       } catch (e) {
         status.textContent = '❌ Invalid JSON: ' + e.message;
         status.className = 'text-sm text-rbig-error';
-        updateBatchEstimate(0);
+        countDisplay.textContent = '';
         return null;
       }
-    }
-    
-    function updateBatchEstimate(count) {
-      document.getElementById('batch-prompt-count').textContent = count;
-      const conc = parseInt(document.getElementById('batch-concurrency').value) || 3;
-      const mins = Math.ceil((count * 20) / conc / 60); // ~20s per image
-      document.getElementById('batch-time-estimate').textContent = mins;
     }
     
     async function startBatchGeneration() {
@@ -895,14 +1072,17 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       document.getElementById('batch-results-section').classList.add('hidden');
       document.getElementById('batch-json-input').value = '';
       document.getElementById('batch-json-status').textContent = '';
+      document.getElementById('batch-prompt-count-display').textContent = '';
       document.getElementById('batch-progress-bar').style.width = '0%';
       document.getElementById('batch-progress-text').textContent = '0/0';
-      updateBatchEstimate(0);
+      calculateBatchPreview();
     }
     
     function toggleReferenceGuide() {
       const guide = document.getElementById('reference-guide');
-      guide.classList.toggle('hidden');
+      const toggleBtn = document.getElementById('reference-guide-toggle');
+      const isHidden = guide.classList.toggle('hidden');
+      toggleBtn.textContent = isHidden ? 'Show' : 'Hide';
     }
     
     // === BENCHMARK ===
