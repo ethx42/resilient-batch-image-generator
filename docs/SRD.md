@@ -76,7 +76,7 @@ interface Job {
 **Requirement:** Use the Strategy Pattern to decouple the "What" (Generate Image) from the "How" (Vertex AI).
 
 - **Model ID:** `imagen-3.0-generate-001`.
-- **Aesthetic Injection:** The system must prepend a `MASTER_AESTHETIC_PROMPT` (defined in config) to every user prompt to guarantee visual consistency.
+- **Aesthetic Injection:** The system must prepend the master aesthetic prompt (loaded from `config/aesthetic.txt` and editable via dashboard) to every user prompt to guarantee visual consistency.
 - **Parameters:**
   - `aspectRatio`: "1:1" (Configurable).
   - `sampleCount`: 1.
@@ -130,7 +130,7 @@ interface Job {
    - Update `jobs.json` -> `PROCESSING`.
    - **Try:**
 
-     - Combine `MASTER_AESTHETIC` + `Job.prompt`.
+     - Combine master aesthetic (from `config/aesthetic.txt`) + `Job.prompt`.
      - Call Vertex AI Adapter.
      - Save Buffer to `./output/img_{id}.png`.
      - Update `jobs.json` -> `DONE`.

@@ -1,0 +1,54 @@
+((PEDAGOGICAL MAGIC REALISM ILLUSTRATION))
+
+─── SUBJECT & ARTISTIC FOUNDATION ───
+((Central illustration: highly detailed watercolor and gouache artwork))
+Artistic Fusion: Alejandro Obregón's expressive, bold color masses (backgrounds and atmospheric 
+brushwork) + Enrique Grau's theatrical volumetric lighting and precise object rendering (central 
+subject with dimensional form, rich texture detail)
+
+Composition: Centered isolated subject, professional editorial illustration quality
+Color Palette: Warm, sunlit—ochres, terracottas, cadmium yellows, Caribbean turquoises (applied 
+to illustration and subtle atmospheric suggestion only)
+Line quality: Clean, defined graphic lines with the clarity of Cartilla Charry educational 
+aesthetics applied as compositional precision and visual hierarchy (not as environmental context)
+
+─── ATMOSPHERIC ENVIRONMENT (MINIMAL & SUPPORTING) ───
+Subtle Atmosphere: Soft, lightly diffused background suggesting space without narrative context
+- Method: Watercolor wet-on-wet blending at edges, lifted pigments creating veils
+- Intensity: 80% subject detail and presence, 20% atmospheric suggestion only
+- Lighting approach: Balanced soft lighting with subtle volumetric light particles visible but 
+  restrained; rim light gently defining subject edges
+- Spatial suggestion ONLY: Minimal mist or haze fade at base/edges; cool-toned atmospheric 
+  perspective (lighter, cooler tones) receding invisibly behind subject
+- Effect: Subject appears to inhabit a subtle space, NOT floating in void, but environment is 
+  impressionistic and secondary—never distracting from central form
+
+─── LABEL/TEXT INTEGRATION ───
+((Educational Label)): 
+- Style: "Hand-lettered serif font" OR "clean sans-serif (specify based on subject)"
+- Placement: [ADAPTIVE - specify for each prompt: "top-center above subject," "bottom-left corner," 
+  "right edge vertical," or "top-right with subject occupying lower left"]
+- Visual treatment: "Subtle, faded watercolor lettering" OR "semi-transparent hand-written style"
+- Color: Harmonic with palette but with sufficient contrast for legibility (avoid pure black; 
+  use darkened ochre, forest green, or deep teal)
+- Opacity/Integration: "Integrated naturally into composition, not overlaid; positioned in 
+  negative space relative to subject"
+- Line weight: Delicate, secondary visual weight relative to illustration
+
+─── TECHNICAL SPECIFICATIONS ───
+Format: PNG with white backgroun 
+Resolution: High-detail editorial quality, fine line work visible
+Edge quality: Soft transitions at periphery due to atmospheric blending; sharp focus on central subject
+Overall mood: Nostalgic yet vibrant, pedagogical yet artistic, sophisticated illustration for 
+educational and decorative use
+
+───────────────────────────────────
+
+NEGATIVE PROMPT: 
+--no background scenery, environmental context, overwhelming atmosphere, cluttered setting, 
+multiple subjects, competing focal points, harsh shadows or high contrast, photorealism, 
+intrusive text, text that obscures subject, bold labels, heavy typography, digital stiffness, 
+3D render quality, character design, cartoon style, borders or frames, decorative elements, 
+pattern fill, busy background, environmental narrative
+
+───────────────────────────────────

@@ -12,15 +12,22 @@ dist/
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # GCP credentials
 *.json
 !package.json
 !tsconfig.json
 !jobs.json.example
+!config/prompts.json
 
 # Generated images
 output/
+/benchmark/
+
+# Reference images
+config/references/
+imagenes loteria/
 
 # Logs
 logs/
